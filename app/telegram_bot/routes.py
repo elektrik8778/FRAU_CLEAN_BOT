@@ -3,21 +3,21 @@ import requests
 from config import Config
 from app.telegram_bot import bp
 from telegram import Update
-from telegram import ParseMode
+from telegram.constants import ParseMode
 from app.telegram_bot import handlers, payments
 import os
 from flask import request
 from pprint import pprint
 from telegram.ext import CommandHandler, MessageHandler, filters, CallbackQueryHandler, PreCheckoutQueryHandler
 from telegram import LabeledPrice, InlineKeyboardButton, InlineKeyboardMarkup
-from app.models import User, Event, Order
+from app.models import User, Order
 from sqlalchemy.engine import CursorResult
 import json
 from telegram.ext import Application
 
 
 def get_bot():
-    application = Application.Builder().token(Config.TG_TOKEN).build()
+    application = Application.builder().token(Config.TG_TOKEN).build()
     set_bot_handlers(application)
     return application.bot
 
@@ -25,14 +25,9 @@ def get_bot():
 def set_bot_handlers(application):
     application.add_handler(CommandHandler('start', handlers.start))
     application.add_handler(CommandHandler('help', handlers.help_command))
-    application.add_handler(CommandHandler('events', handlers.events))
     application.add_handler(CommandHandler('ppay', handlers.send_pay))
-
-    # application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handlers.echo))
-
     application.add_handler(CallbackQueryHandler(pattern='help', callback=handlers.help))
     application.add_handler(CallbackQueryHandler(pattern='deleteMessage', callback=handlers.delete_message))
-    application.add_handler(CallbackQueryHandler(pattern='event', callback=handlers.send_event))
     application.add_handler(CallbackQueryHandler(pattern='cancelorder', callback=handlers.cancel_order))
     application.add_handler(CallbackQueryHandler(pattern='hidemsg', callback=handlers.hide_msg))
 
@@ -44,12 +39,11 @@ def set_bot_handlers(application):
 if (addr := os.environ.get("TG_ADDR")) != "":
     print(f"Setting webhook for {addr}")
     requests.get(f'https://api.telegram.org/bot{Config.TG_TOKEN}/setWebhook?url={Config.SERVER}/telegram')
-    # print(requests.get(f'https://api.telegram.org/bot{Config.TG_TOKEN}/getwebhookinfo').content)
 
 
 @bp.route('/telegram', methods=['GET', 'POST'])
 async def telegram():
-    application = Application.Builder().token(Config.TG_TOKEN).build()
+    application = Application.builder().token(Config.TG_TOKEN).build()
     set_bot_handlers(application)
     update = Update.de_json(request.get_json(force=True), bot=application.bot)
     async with application:
@@ -64,7 +58,6 @@ async def post_response():
     seats = request.json['seats']
     uid = request.json['uid']
     user: User = User.query.filter(User.tg_id == uid).first()
-    event: Event = Event.query.get(eid)
 
     # проверяем, нет ли этих билетов уже в заказах
     for s in seats:
@@ -138,7 +131,7 @@ async def post_response():
         order.invoice_msg = response.message_id
         db.session.commit()
         # помечаем билеты в файле js как недоступные
-        event.get_placement().set_seats_busy_free(order.seats, free=False)
+        # event.get_placement().set_seats_busy_free(order.seats, free=False)
     except Exception as e:
         print(e)
         db.session.delete(order)

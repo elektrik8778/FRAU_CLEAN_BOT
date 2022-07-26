@@ -1,6 +1,6 @@
 from app.telegram_bot import bp
 from app import Config, db
-from app.models import Event, Order, User
+from app.models import Order, User
 from app.telegram_bot.routes import get_bot
 import os
 
@@ -22,9 +22,7 @@ async def check_bookings():
     data = db.session.execute(query_string)
     for i in data:
         order: Order = Order.query.get(int(i['id']))
-        event: Event = Event.query.get(int(i['event']))
-        # места помечаем свободными
-        event.get_placement().set_seats_busy_free(seats=i['seats'], free=True)
+
         try:
             bot = get_bot()
             # удаляем сообщения с инвойсами

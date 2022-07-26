@@ -37,39 +37,7 @@
                 </tbody>
             </table>
             </div>
-            <div class="col-md">
-                <h5>Полученные тикеты</h5>
-                <table class="table table-hover table-striped">
-                <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Номерок</th>
-                    <th>Причина получения</th>
-                    <th>Дата</th>
-                    <th>Выпал</th>
-                    <th>Приз</th>
-                    <th>Действие</th>
-                </tr>
-                </thead>
-                <tbody>
-                {% for n in numbers %}
-                    <tr {% if n.got_flag %} class="bg-success" {% endif %}>
-                        <td>{{ loop.index }}</td>
-                        <td>{{ n.id }}</td>
-                        <td>{{ n.reason }}</td>
-                        <td>{{ n.res_date.strftime('%d.%m.%y %H:%M:%S') }}</td>
-                        <td>{{ n.was_drawn|string }}</td>
-                        <td>{{ n.get_prize().name }}</td>
-                        <td>
-                            {% if not n.got_flag and n.was_drawn %}
-                                <a href="/admin/give_prize/{{ n.id }}" class="btn btn-outline-success">Выдать</a>
-                            {% endif %}
-                        </td>
-                    </tr>
-                {% endfor %}
-                </tbody>
-            </table>
-            </div>
+
         </div>
         <div class="row">
             <div class="col">

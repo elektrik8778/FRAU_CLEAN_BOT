@@ -1,18 +1,12 @@
 import json
 import os
-import random
-import re
 import threading
-import math
-import time
-import zipfile
 from datetime import datetime, timedelta
 from app import db
-# from app import bot
 from app.admin import bp
-from app.models import User, Group, Tag, UserTag, ScheduledMessage, Placement
+from app.models import User, Group, Tag, UserTag, ScheduledMessage, TaskForSending
 from app.admin.forms import ChangeWebhookForm, ScheduledMessageCreateForm, SendTGMessageForm, SendGroupTGMessageForm,\
-    CreateGroupForm, CreateModerForm, CreateQuestionForm, EditQuizForm, PrizeForm
+    CreateGroupForm, CreateModerForm
 from config import Config
 from flask_login import login_required, current_user
 from flask import render_template, redirect, url_for, request, send_from_directory, flash, make_response
@@ -25,6 +19,7 @@ from sqlalchemy import over, func, cast, distinct, Text, desc
 from flask_sqlalchemy import BaseQuery, model
 from xeger import Xeger
 import re
+from app.telegram_bot.routes import get_bot
 
 
 @bp.route('/admin')
@@ -41,19 +36,17 @@ def admin():
         bot_name = Config.BOT_NAME
         title = 'Главная'
         server = Config.SERVER
-        placement: Placement.query.filter(Placement.id == 1).first()
-        print(placement)
         return render_template('main/with-map.html',
                                bot_name=bot_name,
                                title=title,
                                server=server,
-                               placement=placement,
                                )
 
 
 @bp.route('/admin/settings', methods=['GET', 'POST'])
 @login_required
 def admin_settings():
+    bot = get_bot()
     if current_user.role == 'admin' or current_user.role == 'moderator':
         webhook_form = ChangeWebhookForm()
         if webhook_form.validate_on_submit():
@@ -71,7 +64,8 @@ def admin_settings():
 
 @bp.route('/admin/message_schedule', methods=['GET', 'POST'])
 @login_required
-def message_schedule():
+async def message_schedule():
+    bot = get_bot()
     if current_user.role == 'admin':
         create_task_form = ScheduledMessageCreateForm()
         create_task_form.group.choices = [('', 'выбрать группу')] + [(str(x.id), x.name) for x in Group.query.all()]
@@ -93,7 +87,7 @@ def message_schedule():
             else:
                 task.content_link = ''
             db.session.add(task)
-            db.session.commit()
+            await db.session.commit()
             if task.content_link:
                 with open(task.content_link, 'rb') as file_to_send:
                     if task.message_type == 'photo':
@@ -164,6 +158,7 @@ def set_task_deleted(t):
 
 @with_app_context
 def del_tasks(tasks, db):
+    bot = get_bot()
     for t in tasks:
         if (datetime.now() - t.fact_sending_time).total_seconds() < 172800 and t.message_id:
             try:
@@ -176,22 +171,24 @@ def del_tasks(tasks, db):
 
 @bp.route('/admin/user/<id>', methods=['GET', 'POST'])
 @login_required
-def user_detailed(id):
+async def user_detailed(id):
+    bot = get_bot()
     send_tg_mes_form = SendTGMessageForm()
     user = User.query.filter_by(id=int(id)).first()
     received_scheduled_messages = TaskForSending.query.filter(TaskForSending.user_id == id).order_by(TaskForSending.fact_sending_time).all()
-    numbers: LotteryNumber = LotteryNumber.query.filter(LotteryNumber.user_id == id).order_by(LotteryNumber.res_date).all()
+    # numbers: LotteryNumber = LotteryNumber.query.filter(LotteryNumber.user_id == id).order_by(LotteryNumber.res_date).all()
     tags = Tag.query.all()
 
     if send_tg_mes_form.validate_on_submit():
         if send_tg_mes_form.submit.data and send_tg_mes_form.validate():
             text = send_tg_mes_form.text.data
-            bot.send_message(chat_id=user.tg_id, text=text, parse_mode='Markdown')
+            print(text)
+            await bot.send_message(chat_id=user.tg_id, text=text, parse_mode='Markdown')
             return redirect(url_for('admin.user_detailed', id=user.id))
     return render_template('admin/user_detailed.html',
                            user=user,
                            send_tg_mes_form=send_tg_mes_form,
-                           numbers=numbers,
+                           numbers=[1,2],
                            messages=received_scheduled_messages,
                            title=f'Пользователь {user.first_name}',
                            now=datetime.now())
@@ -341,7 +338,9 @@ def moderation():
 
         current_time = {}
 
+
         create_moderator_form = CreateModerForm()
+
         for group in groups:
             current_time[group.name] = datetime.now() + timedelta(hours=int(group.time_zone)) - timedelta(hours=int(Config.SERVER_TIME_ZONE))
 
@@ -387,7 +386,7 @@ def del_user(user_id):
     groups = Group.query.all()
     tags = user.tags
     # chat_messages = ChatMessages.query.all()
-    user_marathon_tasks: UserMarathonTask = UserMarathonTask.query.filter(UserMarathonTask.user_id == user.id).all()
+    # user_marathon_tasks: UserMarathonTask = UserMarathonTask.query.filter(UserMarathonTask.user_id == user.id).all()
     # lotocards: Lotocard = Lotocard.query.filter(Lotocard.user_id == user.id).all()
     for message in messages:
         # for chat_message in chat_messages:
@@ -401,8 +400,8 @@ def del_user(user_id):
         user.tags.remove(tag)
     for invited in user.his_invited_users:
         user.his_invited_users.remove(invited)
-    for umt in user_marathon_tasks:
-        db.session.delete(umt)
+    # for umt in user_marathon_tasks:
+    #     db.session.delete(umt)
     # for card in lotocards:
     #     db.session.delete(card)
     db.session.commit()

@@ -1,15 +1,15 @@
 from app import db
-from app.models import User, Event, Group, Order
+from app.models import User, Group, Order
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, LabeledPrice
 from app.telegram_bot.helpers import with_app_context
-from telegram.ext import CallbackContext
-from telegram import ParseMode
+from telegram.ext import CallbackContext, ContextTypes
+from telegram.constants import ParseMode
 from datetime import datetime
 from app.telegram_bot import texts
 
 
 @with_app_context
-async def start(update: Update, context: CallbackContext.DEFAULT_TYPE):
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user: User = User.query.filter(User.tg_id == update.effective_user.id).first()
     if not user:
         user = User()
@@ -34,14 +34,14 @@ async def start(update: Update, context: CallbackContext.DEFAULT_TYPE):
 
 
 @with_app_context
-async def echo(update: Update, context: CallbackContext.DEFAULT_TYPE):
+async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
         text=update.message.text)
 
 
 @with_app_context
-async def help_command(update: Update, context: CallbackContext.DEFAULT_TYPE):
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = int(update.message.from_user.id)
     message_id = int(update.message.message_id)
     sender: User = User.query.filter(User.tg_id == chat_id).first()
@@ -58,46 +58,46 @@ async def help_command(update: Update, context: CallbackContext.DEFAULT_TYPE):
                               parse_mode=ParseMode.MARKDOWN)
 
 
+# @with_app_context
+# async def events(update: Update, context: CallbackContext.DEFAULT_TYPE):
+#     from app.telegram_bot import buttons as btns
+#     chat_id = int(update.message.from_user.id)
+#     message_id = int(update.message.message_id)
+#     sender: User = User.query.filter(User.tg_id == chat_id).first()
+#
+#     await update.message.delete()
+#
+#     events: Event = Event.query.order_by(Event.date, Event.time).all()
+#     buttons = []
+#     for index, i in enumerate(events):
+#         text = f'{i.name} ({i.date.strftime("%d.%m.%y")}, {i.time.strftime("%H:%M")})'
+#         callback = f'event_{i.id}'
+#         buttons.append(
+#             InlineKeyboardButton(text=text,
+#                                  callback_data=callback)
+#         )
+#
+#     buttons.append(btns.hide_btn())
+
+    # await update.message.reply_text(
+    #     text='Список предстоящих концертов:',
+    #     reply_markup=InlineKeyboardMarkup(inline_keyboard=[[x] for x in buttons]))
+
+
+# @with_app_context
+# async def send_event(update: Update, context: CallbackContext.DEFAULT_TYPE):
+#     await Event.query.get(int(update.callback_query.data.split('_')[-1])).send_info(update, context)
+#     return 'ok'
+
+
 @with_app_context
-async def events(update: Update, context: CallbackContext.DEFAULT_TYPE):
-    from app.telegram_bot import buttons as btns
-    chat_id = int(update.message.from_user.id)
-    message_id = int(update.message.message_id)
-    sender: User = User.query.filter(User.tg_id == chat_id).first()
-
-    await update.message.delete()
-
-    events: Event = Event.query.order_by(Event.date, Event.time).all()
-    buttons = []
-    for index, i in enumerate(events):
-        text = f'{i.name} ({i.date.strftime("%d.%m.%y")}, {i.time.strftime("%H:%M")})'
-        callback = f'event_{i.id}'
-        buttons.append(
-            InlineKeyboardButton(text=text,
-                                 callback_data=callback)
-        )
-
-    buttons.append(btns.hide_btn())
-
-    await update.message.reply_text(
-        text='Список предстоящих концертов:',
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[x] for x in buttons]))
-
-
-@with_app_context
-async def send_event(update: Update, context: CallbackContext.DEFAULT_TYPE):
-    await Event.query.get(int(update.callback_query.data.split('_')[-1])).send_info(update, context)
-    return 'ok'
-
-
-@with_app_context
-async def hide_msg(update: Update, context: CallbackContext.DEFAULT_TYPE):
+async def hide_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.effective_message.delete()
     return 'ok'
 
 
 @with_app_context
-async def cancel_order(update: Update, context: CallbackContext.DEFAULT_TYPE):
+async def cancel_order(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if order := Order.query.get(int(update.callback_query.data.split('_')[-1])):
         if not order.paid:
             order.cancel()
@@ -108,18 +108,18 @@ async def cancel_order(update: Update, context: CallbackContext.DEFAULT_TYPE):
 
 
 @with_app_context
-async def help(update: Update, context: CallbackContext.DEFAULT_TYPE):
+async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = User.query.filter(User.tg_id == update.callback_query.from_user.id).first()
     await update.callback_query.delete_message()
     # texts.help(user)
 
 
 @with_app_context
-async def delete_message(update: Update, context: CallbackContext.DEFAULT_TYPE):
+async def delete_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.delete_message()
 
 @with_app_context
-async def send_pay(update: Update, context: CallbackContext.DEFAULT_TYPE):
+async def send_pay(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user: User = User.query.filter(User.tg_id == update.effective_user.id).first()
     prices = [LabeledPrice(label='Концерт', amount=int(5 * 10000))]
     need_phone_number = False

@@ -1,4 +1,4 @@
-from telegram.ext import CallbackContext
+from telegram.ext import CallbackContext, ContextTypes
 from app.telegram_bot.helpers import with_app_context
 from app import db, Config
 from app.models import Order, UserBonus
@@ -7,7 +7,7 @@ from datetime import datetime
 
 
 @with_app_context
-async def pre_checkout(update: Update, context: CallbackContext.DEFAULT_TYPE):
+async def pre_checkout(update: Update, context: ContextTypes.DEFAULT_TYPE):
     from app.telegram_bot.routes import get_bot
     bot = get_bot()
     order: Order = Order.query.get(int(update.pre_checkout_query.invoice_payload.split('_')[-1]))
@@ -31,7 +31,7 @@ async def pre_checkout(update: Update, context: CallbackContext.DEFAULT_TYPE):
 
 
 @with_app_context
-async def successful_payment(update: Update, context:CallbackContext.DEFAULT_TYPE):
+async def successful_payment(update: Update, context:ContextTypes.DEFAULT_TYPE):
     order: Order = Order.query.get(int(update.effective_message.successful_payment.invoice_payload.split('_')[-1]))
     order.paid = True
     order.price = update.effective_message.successful_payment.total_amount/100

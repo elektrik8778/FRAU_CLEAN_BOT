@@ -7,6 +7,7 @@ from app.auth.forms import LoginForm, RegistrationForm, ResetPasswordRequestForm
 from app import Config
 from flask_mail import Message
 # from app.telegram_bot.handlers import greet_user, success_registration
+from app.telegram_bot.routes import get_bot
 
 
 @bp.route('/logout', methods=['GET', 'POST'])
@@ -23,7 +24,7 @@ async def login():
     form = LoginForm()
     if form.validate_on_submit():
         user: User = User.query.filter(User.tg_id == form.login.data).first()
-        print(user, form.password.data)
+        print(user, form.password.data, user.check_password(form.password.data))
         if user is None or not user.check_password(form.password.data):
             flash('Неверный адрес электронной почты или пароль. Если вы не регистрировались, нажмите кнопку "ЗАРЕГИСТРИРОВАТЬСЯ" ниже')
             return redirect(url_for('auth.login'))
@@ -36,6 +37,7 @@ async def login():
 
 @bp.route('/registration', methods=['GET', 'POST'])
 async def register():
+    bot = get_bot()
     bot_name = Config.BOT_NAME
     tg_id = None
     user = current_user
